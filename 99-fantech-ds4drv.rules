@@ -2,18 +2,24 @@
 # KERNELS format: BUS:VENDOR:PRODUCT.* where 0005=BT, 054C=Sony
 # 05C4 = DS4 v1 (CUH-ZCT1)   09CC = DS4 v2 / Fantech Nova II (CUH-ZCT2 clone)
 
-# Access permissions for non-root users (Steam, games)
+# Permissoes de acesso para usuario nao-root (necessario para Steam/jogos)
 ACTION=="add", SUBSYSTEM=="hidraw", KERNELS=="0005:054C:05C4.*", MODE="0660", TAG+="uaccess"
 ACTION=="add", SUBSYSTEM=="hidraw", KERNELS=="0005:054C:09CC.*", MODE="0660", TAG+="uaccess"
 
-# Start ds4drv on connect (async via systemd-run to avoid blocking udev)
+# Iniciar ds4drv ao conectar (assincronamente via systemd-run para nao bloquear udev)
 ACTION=="add", SUBSYSTEM=="hidraw", KERNELS=="0005:054C:05C4.*", \
     RUN+="/usr/bin/systemd-run --no-block --quiet /usr/local/bin/ds4drv-hotplug add"
 ACTION=="add", SUBSYSTEM=="hidraw", KERNELS=="0005:054C:09CC.*", \
     RUN+="/usr/bin/systemd-run --no-block --quiet /usr/local/bin/ds4drv-hotplug add"
 
-# Stop/restart ds4drv on disconnect (%k = device name, e.g. hidraw11)
+# Parar/reiniciar ds4drv ao desconectar (%k = nome do dispositivo, ex: hidraw11)
 ACTION=="remove", SUBSYSTEM=="hidraw", KERNELS=="0005:054C:05C4.*", \
     RUN+="/usr/bin/systemd-run --no-block --quiet /usr/local/bin/ds4drv-hotplug remove %k"
 ACTION=="remove", SUBSYSTEM=="hidraw", KERNELS=="0005:054C:09CC.*", \
     RUN+="/usr/bin/systemd-run --no-block --quiet /usr/local/bin/ds4drv-hotplug remove %k"
+
+# Fallback via subsistema HID: KERNEL== casa o nome do proprio device, mais confiavel para BT
+ACTION=="remove", SUBSYSTEM=="hid", KERNEL=="0005:054C:05C4.*", \
+    RUN+="/usr/bin/systemd-run --no-block --quiet /usr/local/bin/ds4drv-hotplug remove"
+ACTION=="remove", SUBSYSTEM=="hid", KERNEL=="0005:054C:09CC.*", \
+    RUN+="/usr/bin/systemd-run --no-block --quiet /usr/local/bin/ds4drv-hotplug remove"
