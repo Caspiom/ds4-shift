@@ -1,0 +1,10 @@
+[Unit]
+Description=DualShock 4 -> Xbox 360 emulation via ds4drv (hidraw, on-demand)
+After=bluetooth.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/ds4drv --hidraw --emulate-xpad
+Restart=no
+StandardOutput=journal
+StandardError=journal

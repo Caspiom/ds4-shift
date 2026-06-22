@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# Lifecycle manager for ds4drv — invoked by udev via systemd-run --no-block.
+# Usage: ds4drv-hotplug add | ds4drv-hotplug remove <hidraw-name>
+#
+# HID parent format: BUS:VENDOR:PRODUCT.INSTANCE
+#   Bus 0005=Bluetooth  054C=Sony  05C4=DS4v1  09CC=DS4v2
+
+set -euo pipefail
+
+ACTION="${1:-}"
+EXCLUDED_DEV="${2:-}"
+
+count_remaining_ds4() {
+    local count=0
+    for hidraw_dir in /sys/class/hidraw/hidraw*; do
+        [[ -d "$hidraw_dir" ]] || continue
+        local devname
+        devname=$(basename "$hidraw_dir")
+        [[ "$devname" == "$EXCLUDED_DEV" ]] && continue
+        local real_path
+        real_path=$(readlink -f "$hidraw_dir" 2>/dev/null) || continue
+        local hid_dev
+        hid_dev=$(basename "$(dirname "$(dirname "$real_path")")")
+        if [[ "$hid_dev" =~ ^0005:054C:(05C4|09CC)\. ]]; then
+            (( count++ )) || true
+        fi
+    done
+    echo "$count"
+}
+
+case "$ACTION" in
+    add)
+        if systemctl is-active --quiet ds4drv.service 2>/dev/null; then
+            systemctl restart ds4drv.service
+        else
+            systemctl start ds4drv.service
+        fi
+        ;;
+    remove)
+        remaining=$(count_remaining_ds4)
+        if (( remaining > 0 )); then
+            systemctl restart ds4drv.service
+        else
+            systemctl stop ds4drv.service 2>/dev/null || true
+        fi
+        ;;
+    *)
+        echo "Usage: $0 {add|remove} [hidraw-device-name]" >&2
+        exit 1
+        ;;
+esac
